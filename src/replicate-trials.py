@@ -9,7 +9,7 @@ from sklearn.neural_network import MLPRegressor
 import os
 import warnings
 
-np.random.seed(208)
+np.random.seed(13)
 warnings.filterwarnings("ignore")
 
 argp = argparse.ArgumentParser()
@@ -144,6 +144,7 @@ def naive_interval(
     coverage_rates = np.empty(n_trials)
     interval_widths = np.empty(n_trials)
     for trial in range(n_trials):
+        print(f"Trial {trial + 1} of {n_trials}")
         X_train, y_train, X_test, y_test = train_test_split(X, y, n)
         model = get_model(model_type, X_train)
         model.fit(X_train, y_train)
@@ -197,6 +198,7 @@ def jackknife_interval(
     coverage_rates = np.empty(n_trials)
     interval_widths = np.empty(n_trials)
     for trial in range(n_trials):
+        print(f"Trial {trial + 1} of {n_trials}")
         X_train, y_train, X_test, y_test = train_test_split(X, y, n)
         model = get_model(model_type, X_train)
         # Leave-one-out residuals
@@ -260,6 +262,7 @@ def jackknife_plus_interval(
     coverage_rates = np.empty(n_trials)
     interval_widths = np.empty(n_trials)
     for trial in range(n_trials):
+        print(f"Trial {trial + 1} of {n_trials}")
         X_train, y_train, X_test, y_test = train_test_split(X, y, n)
         model = get_model(model_type, X_train)
         # Leave-one-out residuals
@@ -335,16 +338,19 @@ def get_interval(
 
 if __name__ == "__main__":
     data = zip(["crime", "blog"], [args.crime_data, args.blog_data])
-    print("test")
     for data_source, data_path in data:
         data_file = pd.read_csv(data_path)
         X = data_file.iloc[:, : (data_file.shape[1] - 1)].to_numpy()
         y = data_file.iloc[:, -1].to_numpy()
-        for interval in ["naive"]:
-            for model_type in ["ridge"]:
+        for model_type in ["ridge", "rf", "nn"]:
+            for interval in ["naive", "jackknife", "jackknife_plus"]:
+                filename = data_source + "-" + model_type + "-" + interval + ".csv"
+                print("-----")
+                print(f"Writing {filename} to {args.out_dir}")
                 results = get_interval(interval, X, y, model_type)
                 result_df = pd.DataFrame(np.vstack(results).T)
                 result_df.columns = ["coverage", "interval_width"]
-                filename = data_source + "-" + interval + "-" + model_type + ".csv"
                 result_df.to_csv(os.path.join(args.out_dir, filename), index=False)
                 print(f"{filename} written to {args.out_dir}")
+                print(f"Coverage: {results[0].mean()}, Width: {results[1].mean()}")
+                print("-----")
