@@ -18,6 +18,7 @@ argp.add_argument("--blog_data", type=str, required=True)
 argp.add_argument("--out_dir", type=str, required=True)
 args = argp.parse_args()
 
+
 def train_test_split(X: np.array, y: np.array, n_train: int) -> tuple:
     """
     Split data into training and testing data
@@ -51,6 +52,7 @@ def train_test_split(X: np.array, y: np.array, n_train: int) -> tuple:
     y_test = y[train_bool == False]
     return X_train, y_train, X_test, y_test
 
+
 def get_lambda(X: np.array) -> float:
     """
     Calculate the lambda value for ridge regression as specified by the paper
@@ -66,9 +68,10 @@ def get_lambda(X: np.array) -> float:
     lambda: float
         lambda value for ridge regression based on spectral norm of X
     """
-    A = LinearOperator(X.shape, matvec=lambda v:X @ v, rmatvec=lambda v: X.T @ v)
+    A = LinearOperator(X.shape, matvec=lambda v: X @ v, rmatvec=lambda v: X.T @ v)
     spectral_norm = estimate_spectral_norm(A)
-    return 0.001 * (spectral_norm ** 2)
+    return 0.001 * (spectral_norm**2)
+
 
 def get_model(model_type: str, X_train: np.array):
     """
@@ -93,7 +96,9 @@ def get_model(model_type: str, X_train: np.array):
         # Lambda times two to get the optimization functions to align
         model = Ridge(alpha=(2 * get_lambda(X_train)), random_state=208)
     elif model_type == "rf":
-        model = RandomForestRegressor(n_estimators=20, criterion="absolute_error", random_state=208)
+        model = RandomForestRegressor(
+            n_estimators=20, criterion="absolute_error", random_state=208
+        )
     elif model_type == "nn":
         model = MLPRegressor(activation="logistic", solver="lbfgs", random_state=208)
     else:
@@ -101,8 +106,14 @@ def get_model(model_type: str, X_train: np.array):
     return model
 
 
-def naive_interval(X: np.array, y: np.array, model_type: str,
-                   alpha: float = 0.10, n: int = 200, n_trials: int = 20) -> tuple:
+def naive_interval(
+    X: np.array,
+    y: np.array,
+    model_type: str,
+    alpha: float = 0.10,
+    n: int = 200,
+    n_trials: int = 20,
+) -> tuple:
     """
     Calculate coverage rates and interval widths for various models using the
     naive prediction interval
@@ -122,7 +133,7 @@ def naive_interval(X: np.array, y: np.array, model_type: str,
         Number of desired training samples
     n_trials: int, default = 20
         Number of trials to create (number of empirical coverage rates)
-    
+
     Returns
     -------
     coverage_rates: np.array
@@ -148,8 +159,14 @@ def naive_interval(X: np.array, y: np.array, model_type: str,
     return coverage_rates, interval_widths
 
 
-def jackknife_interval(X: np.array, y: np.array, model_type: str,
-                   alpha: float = 0.10, n: int = 200, n_trials: int = 20) -> tuple:
+def jackknife_interval(
+    X: np.array,
+    y: np.array,
+    model_type: str,
+    alpha: float = 0.10,
+    n: int = 200,
+    n_trials: int = 20,
+) -> tuple:
     """
     Calculate coverage rates and interval widths for various models using the
     jackknife prediction interval
@@ -169,7 +186,7 @@ def jackknife_interval(X: np.array, y: np.array, model_type: str,
         Number of desired training samples
     n_trials: int, default = 20
         Number of trials to create (number of empirical coverage rates)
-    
+
     Returns
     -------
     coverage_rates: np.array
@@ -201,11 +218,18 @@ def jackknife_interval(X: np.array, y: np.array, model_type: str,
         ub = fitted_vals + q_hat
         coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
         interval_widths[trial] = np.mean(ub - lb)
-    
+
     return coverage_rates, interval_widths
 
-def jackknife_plus_interval(X: np.array, y: np.array, model_type: str,
-                   alpha: float = 0.10, n: int = 200, n_trials: int = 20) -> tuple:
+
+def jackknife_plus_interval(
+    X: np.array,
+    y: np.array,
+    model_type: str,
+    alpha: float = 0.10,
+    n: int = 200,
+    n_trials: int = 20,
+) -> tuple:
     """
     Calculate coverage rates and interval widths for various models using the
     jackknife plus prediction interval
@@ -225,7 +249,7 @@ def jackknife_plus_interval(X: np.array, y: np.array, model_type: str,
         Number of desired training samples
     n_trials: int, default = 20
         Number of trials to create (number of empirical coverage rates)
-    
+
     Returns
     -------
     coverage_rates: np.array
@@ -253,7 +277,7 @@ def jackknife_plus_interval(X: np.array, y: np.array, model_type: str,
             fitted_vals_loo = model.predict(X_test)
             lb_stat[:, i] = fitted_vals_loo - R_loo
             ub_stat[:, i] = fitted_vals_loo + R_loo
-        
+
         lb = np.sort(lb_stat, axis=1)[:, int(np.floor(alpha * (n - 1)))]
         ub = np.sort(ub_stat, axis=1)[:, int(np.ceil((1 - alpha) * (n - 1)))]
         coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
@@ -261,8 +285,16 @@ def jackknife_plus_interval(X: np.array, y: np.array, model_type: str,
 
     return coverage_rates, interval_widths
 
-def get_interval(interval_type: str, X: np.array, y: np.array, model_type: str,
-        alpha: float = 0.10, n: int = 200, n_trials: int = 20) -> tuple:
+
+def get_interval(
+    interval_type: str,
+    X: np.array,
+    y: np.array,
+    model_type: str,
+    alpha: float = 0.10,
+    n: int = 200,
+    n_trials: int = 20,
+) -> tuple:
     """
     Wrapper for calculating interval types
 
@@ -283,7 +315,7 @@ def get_interval(interval_type: str, X: np.array, y: np.array, model_type: str,
         Number of desired training samples
     n_trials: int, default = 20
         Number of trials to create (number of empirical coverage rates)
-    
+
     Returns
     -------
     coverage_rates: np.array
@@ -306,7 +338,7 @@ if __name__ == "__main__":
     print("test")
     for data_source, data_path in data:
         data_file = pd.read_csv(data_path)
-        X = data_file.iloc[:, :(data_file.shape[1] - 1)].to_numpy()
+        X = data_file.iloc[:, : (data_file.shape[1] - 1)].to_numpy()
         y = data_file.iloc[:, -1].to_numpy()
         for interval in ["naive"]:
             for model_type in ["ridge"]:
