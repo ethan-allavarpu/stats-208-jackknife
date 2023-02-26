@@ -7,6 +7,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
 from sklearn.neural_network import MLPRegressor
 import os
+import time
 import warnings
 
 np.random.seed(13)
@@ -144,7 +145,8 @@ def naive_interval(
     coverage_rates = np.empty(n_trials)
     interval_widths = np.empty(n_trials)
     for trial in range(n_trials):
-        print(f"Trial {trial + 1} of {n_trials}")
+        print(f"Trial {trial + 1} of {n_trials}.")
+        t1 = time.perf_counter()
         X_train, y_train, X_test, y_test = train_test_split(X, y, n)
         model = get_model(model_type, X_train)
         model.fit(X_train, y_train)
@@ -156,6 +158,7 @@ def naive_interval(
         ub = fitted_vals + q_hat
         coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
         interval_widths[trial] = np.mean(ub - lb)
+        print(f"Trial took {round(time.perf_counter() - t1, 2)} seconds.")
 
     return coverage_rates, interval_widths
 
@@ -198,7 +201,8 @@ def jackknife_interval(
     coverage_rates = np.empty(n_trials)
     interval_widths = np.empty(n_trials)
     for trial in range(n_trials):
-        print(f"Trial {trial + 1} of {n_trials}")
+        print(f"Trial {trial + 1} of {n_trials}.")
+        t1 = time.perf_counter()
         X_train, y_train, X_test, y_test = train_test_split(X, y, n)
         model = get_model(model_type, X_train)
         # Leave-one-out residuals
@@ -210,6 +214,8 @@ def jackknife_interval(
             y_train_loo = y_train[loo_masks]
             X_test_loo = X_train[i].reshape(1, -1)
             y_test_loo = y_train[i]
+            if model_type == "ridge":
+                model = Ridge(alpha=(2 * get_lambda(X_train_loo)), random_state=208)
             model.fit(X_train_loo, y_train_loo)
             R_loo[i] = np.abs(y_test_loo - model.predict(X_test_loo))
 
@@ -220,6 +226,7 @@ def jackknife_interval(
         ub = fitted_vals + q_hat
         coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
         interval_widths[trial] = np.mean(ub - lb)
+        print(f"Trial took {round(time.perf_counter() - t1, 2)} seconds.")
 
     return coverage_rates, interval_widths
 
@@ -262,7 +269,8 @@ def jackknife_plus_interval(
     coverage_rates = np.empty(n_trials)
     interval_widths = np.empty(n_trials)
     for trial in range(n_trials):
-        print(f"Trial {trial + 1} of {n_trials}")
+        print(f"Trial {trial + 1} of {n_trials}.")
+        t1 = time.perf_counter()
         X_train, y_train, X_test, y_test = train_test_split(X, y, n)
         model = get_model(model_type, X_train)
         # Leave-one-out residuals
@@ -275,6 +283,8 @@ def jackknife_plus_interval(
             y_train_loo = y_train[loo_masks]
             X_test_loo = X_train[i].reshape(1, -1)
             y_test_loo = y_train[i]
+            if model_type == "ridge":
+                model = Ridge(alpha=(2 * get_lambda(X_train_loo)), random_state=208)
             model.fit(X_train_loo, y_train_loo)
             R_loo = np.abs(y_test_loo - model.predict(X_test_loo))
             fitted_vals_loo = model.predict(X_test)
@@ -285,6 +295,7 @@ def jackknife_plus_interval(
         ub = np.sort(ub_stat, axis=1)[:, int(np.ceil((1 - alpha) * (n - 1)))]
         coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
         interval_widths[trial] = np.mean(ub - lb)
+        print(f"Trial took {round(time.perf_counter() - t1, 2)} seconds.")
 
     return coverage_rates, interval_widths
 
@@ -337,7 +348,7 @@ def get_interval(
 
 
 if __name__ == "__main__":
-    data = zip(["crime", "blog"], [args.crime_data, args.blog_data])
+    data = zip(["blog", "crime"], [args.blog_data, args.crime_data])
     for data_source, data_path in data:
         data_file = pd.read_csv(data_path)
         X = data_file.iloc[:, : (data_file.shape[1] - 1)].to_numpy()
