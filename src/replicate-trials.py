@@ -1,5 +1,4 @@
 import argparse
-import multiprocessing
 import numpy as np
 import pandas as pd
 from scipy.linalg.interpolative import estimate_spectral_norm
@@ -8,9 +7,10 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import Ridge
 from sklearn.neural_network import MLPRegressor
 import os
+import time
 import warnings
 
-np.random.seed(5 ** 5)
+np.random.seed(13)
 warnings.filterwarnings("ignore")
 
 argp = argparse.ArgumentParser()
@@ -107,160 +107,197 @@ def get_model(model_type: str, X_train: np.array):
     return model
 
 
-def run_naive_trial(params: tuple) -> tuple:
+def naive_interval(
+    X: np.array,
+    y: np.array,
+    model_type: str,
+    alpha: float = 0.10,
+    n: int = 200,
+    n_trials: int = 20,
+) -> tuple:
     """
     Calculate coverage rates and interval widths for various models using the
     naive prediction interval
 
     Parameters
     ----------
-    params: Tuple with the following elements (in order)
-        n_trials: int
-            Number of trials to create (number of empirical coverage rates)
-        X: np.array
-            Design matrix of covariates
-        y: np.array
-            Array of response values
-        n: int
-            Number of desired training samples
-        model_type: str
-            Type of model to create. One of "ridge" (ridge regression),
-            "rf" (random forest), or "nn" (neural network)
-        alpha: float
-            Significance level (1 - alpha is the coverage rate)
+    X: np.array
+        Design matrix of covariates
+    y: np.array
+        Array of response values
+    model_type: str
+        Type of model to create. One of "ridge" (ridge regression),
+        "rf" (random forest), or "nn" (neural network)
+    alpha: float, default = 0.10
+        Significance level (1 - alpha is the coverage rate)
+    n: int, default = 20
+        Number of desired training samples
+    n_trials: int, default = 20
+        Number of trials to create (number of empirical coverage rates)
 
     Returns
     -------
-    coverage_rate: float
-        Coverage rate for each trial
-    interval_width: float
-        Interval width for each trial
+    coverage_rates: np.array
+        Coverage rate for each of the n_trials trials
+    interval_widths: np.array
+        Interval width for each of the n_trials trials
     """
-    _, X, y, n, model_type, alpha = params
-    X_train, y_train, X_test, y_test = train_test_split(X, y, n)
-    model = get_model(model_type, X_train)
-    model.fit(X_train, y_train)
-    abs_residuals = np.abs(y_train - model.predict(X_train))
-    # Cutoff as determined by the paper
-    q_hat = np.sort(abs_residuals)[int(np.ceil((1 - alpha) * (n - 1)))]
-    fitted_vals = model.predict(X_test)
-    lb = fitted_vals - q_hat
-    ub = fitted_vals + q_hat
-    coverage_rate = np.mean((lb <= y_test) & (ub >= y_test))
-    interval_width = np.mean(ub - lb)
-    return coverage_rate, interval_width
+    coverage_rates = np.empty(n_trials)
+    interval_widths = np.empty(n_trials)
+    for trial in range(n_trials):
+        print(f"Trial {trial + 1} of {n_trials}.")
+        t1 = time.perf_counter()
+        X_train, y_train, X_test, y_test = train_test_split(X, y, n)
+        model = get_model(model_type, X_train)
+        model.fit(X_train, y_train)
+        abs_residuals = np.abs(y_train - model.predict(X_train))
+        # Cutoff as determined by the paper
+        q_hat = np.sort(abs_residuals)[int(np.ceil((1 - alpha) * (n - 1)))]
+        fitted_vals = model.predict(X_test)
+        lb = fitted_vals - q_hat
+        ub = fitted_vals + q_hat
+        coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
+        interval_widths[trial] = np.mean(ub - lb)
+        print(f"Trial took {round(time.perf_counter() - t1, 2)} seconds.")
+
+    return coverage_rates, interval_widths
 
 
-def run_jackknife_trial(params: tuple) -> tuple:
+def jackknife_interval(
+    X: np.array,
+    y: np.array,
+    model_type: str,
+    alpha: float = 0.10,
+    n: int = 200,
+    n_trials: int = 20,
+) -> tuple:
     """
     Calculate coverage rates and interval widths for various models using the
     jackknife prediction interval
 
     Parameters
     ----------
-    params: Tuple with the following elements (in order)
-        n_trials: int
-            Number of trials to create (number of empirical coverage rates)
-        X: np.array
-            Design matrix of covariates
-        y: np.array
-            Array of response values
-        n: int
-            Number of desired training samples
-        model_type: str
-            Type of model to create. One of "ridge" (ridge regression),
-            "rf" (random forest), or "nn" (neural network)
-        alpha: float
-            Significance level (1 - alpha is the coverage rate)
+    X: np.array
+        Design matrix of covariates
+    y: np.array
+        Array of response values
+    model_type: str
+        Type of model to create. One of "ridge" (ridge regression),
+        "rf" (random forest), or "nn" (neural network)
+    alpha: float, default = 0.10
+        Significance level (1 - alpha is the coverage rate)
+    n: int, default = 20
+        Number of desired training samples
+    n_trials: int, default = 20
+        Number of trials to create (number of empirical coverage rates)
 
     Returns
     -------
-    coverage_rate: float
-        Coverage rate for each trial
-    interval_width: float
-        Interval width for each trial
+    coverage_rates: np.array
+        Coverage rate for each of the n_trials trials
+    interval_widths: np.array
+        Interval width for each of the n_trials trials
     """
-    _, X, y, n, model_type, alpha = params
-    X_train, y_train, X_test, y_test = train_test_split(X, y, n)
-    model = get_model(model_type, X_train)
-    # Leave-one-out residuals
-    R_loo = np.empty(X_train.shape[0])
-    for i in range(X_train.shape[0]):
-        loo_masks = np.ones(X_train.shape[0], dtype=bool)
-        loo_masks[i] = False
-        X_train_loo = X_train[loo_masks]
-        y_train_loo = y_train[loo_masks]
-        X_test_loo = X_train[i].reshape(1, -1)
-        y_test_loo = y_train[i]
-        if model_type == "ridge":
-            model = Ridge(alpha=(2 * get_lambda(X_train_loo)), random_state=208)
-        model.fit(X_train_loo, y_train_loo)
-        R_loo[i] = np.abs(y_test_loo - model.predict(X_test_loo))
-    model.fit(X_train, y_train)
-    q_hat = np.sort(R_loo)[int(np.ceil((1 - alpha) * (n - 1)))]
-    fitted_vals = model.predict(X_test)
-    lb = fitted_vals - q_hat
-    ub = fitted_vals + q_hat
-    coverage_rate = np.mean((lb <= y_test) & (ub >= y_test))
-    interval_width = np.mean(ub - lb)
-    return coverage_rate, interval_width
+    coverage_rates = np.empty(n_trials)
+    interval_widths = np.empty(n_trials)
+    for trial in range(n_trials):
+        print(f"Trial {trial + 1} of {n_trials}.")
+        t1 = time.perf_counter()
+        X_train, y_train, X_test, y_test = train_test_split(X, y, n)
+        model = get_model(model_type, X_train)
+        # Leave-one-out residuals
+        R_loo = np.empty(X_train.shape[0])
+        for i in range(X_train.shape[0]):
+            loo_masks = np.ones(X_train.shape[0], dtype=bool)
+            loo_masks[i] = False
+            X_train_loo = X_train[loo_masks]
+            y_train_loo = y_train[loo_masks]
+            X_test_loo = X_train[i].reshape(1, -1)
+            y_test_loo = y_train[i]
+            if model_type == "ridge":
+                model = Ridge(alpha=(2 * get_lambda(X_train_loo)), random_state=208)
+            model.fit(X_train_loo, y_train_loo)
+            R_loo[i] = np.abs(y_test_loo - model.predict(X_test_loo))
+
+        model.fit(X_train, y_train)
+        q_hat = np.sort(R_loo)[int(np.ceil((1 - alpha) * (n - 1)))]
+        fitted_vals = model.predict(X_test)
+        lb = fitted_vals - q_hat
+        ub = fitted_vals + q_hat
+        coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
+        interval_widths[trial] = np.mean(ub - lb)
+        print(f"Trial took {round(time.perf_counter() - t1, 2)} seconds.")
+
+    return coverage_rates, interval_widths
 
 
-def run_jackknife_plus_trial(params: tuple) -> tuple:
+def jackknife_plus_interval(
+    X: np.array,
+    y: np.array,
+    model_type: str,
+    alpha: float = 0.10,
+    n: int = 200,
+    n_trials: int = 20,
+) -> tuple:
     """
     Calculate coverage rates and interval widths for various models using the
-    jackknife+ prediction interval
+    jackknife plus prediction interval
 
     Parameters
     ----------
-    params: Tuple with the following elements (in order)
-        n_trials: int
-            Number of trials to create (number of empirical coverage rates)
-        X: np.array
-            Design matrix of covariates
-        y: np.array
-            Array of response values
-        n: int
-            Number of desired training samples
-        model_type: str
-            Type of model to create. One of "ridge" (ridge regression),
-            "rf" (random forest), or "nn" (neural network)
-        alpha: float
-            Significance level (1 - alpha is the coverage rate)
+    X: np.array
+        Design matrix of covariates
+    y: np.array
+        Array of response values
+    model_type: str
+        Type of model to create. One of "ridge" (ridge regression),
+        "rf" (random forest), or "nn" (neural network)
+    alpha: float, default = 0.10
+        Significance level (1 - alpha is the coverage rate)
+    n: int, default = 20
+        Number of desired training samples
+    n_trials: int, default = 20
+        Number of trials to create (number of empirical coverage rates)
 
     Returns
     -------
-    coverage_rate: float
-        Coverage rate for each trial
-    interval_width: float
-        Interval width for each trial
+    coverage_rates: np.array
+        Coverage rate for each of the n_trials trials
+    interval_widths: np.array
+        Interval width for each of the n_trials trials
     """
-    _, X, y, n, model_type, alpha = params
-    X_train, y_train, X_test, y_test = train_test_split(X, y, n)
-    model = get_model(model_type, X_train)
-    # Leave-one-out residuals
-    lb_stat = np.empty((X_test.shape[0], X_train.shape[0]))
-    ub_stat = np.empty((X_test.shape[0], X_train.shape[0]))
-    for i in range(X_train.shape[0]):
-        loo_masks = np.ones(X_train.shape[0], dtype=bool)
-        loo_masks[i] = False
-        X_train_loo = X_train[loo_masks]
-        y_train_loo = y_train[loo_masks]
-        X_test_loo = X_train[i].reshape(1, -1)
-        y_test_loo = y_train[i]
-        if model_type == "ridge":
-            model = Ridge(alpha=(2 * get_lambda(X_train_loo)), random_state=208)
-        model.fit(X_train_loo, y_train_loo)
-        R_loo = np.abs(y_test_loo - model.predict(X_test_loo))
-        fitted_vals_loo = model.predict(X_test)
-        lb_stat[:, i] = fitted_vals_loo - R_loo
-        ub_stat[:, i] = fitted_vals_loo + R_loo
+    coverage_rates = np.empty(n_trials)
+    interval_widths = np.empty(n_trials)
+    for trial in range(n_trials):
+        print(f"Trial {trial + 1} of {n_trials}.")
+        t1 = time.perf_counter()
+        X_train, y_train, X_test, y_test = train_test_split(X, y, n)
+        model = get_model(model_type, X_train)
+        # Leave-one-out residuals
+        lb_stat = np.empty((X_test.shape[0], X_train.shape[0]))
+        ub_stat = np.empty((X_test.shape[0], X_train.shape[0]))
+        for i in range(X_train.shape[0]):
+            loo_masks = np.ones(X_train.shape[0], dtype=bool)
+            loo_masks[i] = False
+            X_train_loo = X_train[loo_masks]
+            y_train_loo = y_train[loo_masks]
+            X_test_loo = X_train[i].reshape(1, -1)
+            y_test_loo = y_train[i]
+            if model_type == "ridge":
+                model = Ridge(alpha=(2 * get_lambda(X_train_loo)), random_state=208)
+            model.fit(X_train_loo, y_train_loo)
+            R_loo = np.abs(y_test_loo - model.predict(X_test_loo))
+            fitted_vals_loo = model.predict(X_test)
+            lb_stat[:, i] = fitted_vals_loo - R_loo
+            ub_stat[:, i] = fitted_vals_loo + R_loo
 
-    lb = np.sort(lb_stat, axis=1)[:, int(np.floor(alpha * (n - 1)))]
-    ub = np.sort(ub_stat, axis=1)[:, int(np.ceil((1 - alpha) * (n - 1)))]
-    coverage_rate = np.mean((lb <= y_test) & (ub >= y_test))
-    interval_width = np.mean(ub - lb)
-    return coverage_rate, interval_width
+        lb = np.sort(lb_stat, axis=1)[:, int(np.floor(alpha * (n - 1)))]
+        ub = np.sort(ub_stat, axis=1)[:, int(np.ceil((1 - alpha) * (n - 1)))]
+        coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
+        interval_widths[trial] = np.mean(ub - lb)
+        print(f"Trial took {round(time.perf_counter() - t1, 2)} seconds.")
+
+    return coverage_rates, interval_widths
 
 
 def get_interval(
@@ -300,19 +337,14 @@ def get_interval(
     interval_widths: np.array
         Interval width for given interval
     """
-    params = [(trial, X, y, n, model_type, alpha) for trial in range(n_trials)]
-    pool = multiprocessing.Pool(4)
-
     if interval_type == "naive":
-        coverage, width = zip(*pool.map(run_naive_trial, params))
+        return naive_interval(X, y, model_type, alpha, n, n_trials)
     elif interval_type == "jackknife":
-        coverage, width = zip(*pool.map(run_jackknife_trial, params))
+        return jackknife_interval(X, y, model_type, alpha, n, n_trials)
     elif interval_type == "jackknife_plus":
-        coverage, width = zip(*pool.map(run_jackknife_plus_trial, params))
+        return jackknife_plus_interval(X, y, model_type, alpha, n, n_trials)
     else:
         raise ValueError("Interval must be naive, jackknife, or jackknife_plus")
-
-    return np.array(coverage), np.array(width)
 
 
 if __name__ == "__main__":
