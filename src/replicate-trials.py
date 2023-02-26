@@ -14,9 +14,9 @@ np.random.seed(13)
 warnings.filterwarnings("ignore")
 
 argp = argparse.ArgumentParser()
-argp.add_argument("--crime_data", type=str, required=True)
-argp.add_argument("--blog_data", type=str, required=True)
-argp.add_argument("--out_dir", type=str, required=True)
+argp.add_argument("--input_path", type=str, required=True)
+argp.add_argument("--model_type", type=str, required=True)
+argp.add_argument("--interval_type", type=str, required=True)
 args = argp.parse_args()
 
 
@@ -348,20 +348,23 @@ def get_interval(
 
 
 if __name__ == "__main__":
-    data = zip(["crime", "blog"], [args.crime_data, args.blog_data])
-    for data_source, data_path in data:
-        data_file = pd.read_csv(data_path)
-        X = data_file.iloc[:, : (data_file.shape[1] - 1)].to_numpy()
-        y = data_file.iloc[:, -1].to_numpy()
-        for model_type in ["ridge", "rf", "nn"]:
-            for interval in ["naive", "jackknife", "jackknife_plus"]:
-                filename = data_source + "-" + model_type + "-" + interval + ".csv"
-                print("-----")
-                print(f"Writing {filename} to {args.out_dir}")
-                results = get_interval(interval, X, y, model_type)
-                result_df = pd.DataFrame(np.vstack(results).T)
-                result_df.columns = ["coverage", "interval_width"]
-                result_df.to_csv(os.path.join(args.out_dir, filename), index=False)
-                print(f"{filename} written to {args.out_dir}")
-                print(f"Coverage: {results[0].mean()}, Width: {results[1].mean()}")
-                print("-----")
+    data_file = pd.read_csv(args.input_path)
+    output_path = (
+        args.input_path.rstrip(".csv")
+        + "-"
+        + args.model_type
+        + "-"
+        + args.interval_type
+        + ".csv"
+    )
+    X = data_file.iloc[:, : (data_file.shape[1] - 1)].to_numpy()
+    y = data_file.iloc[:, -1].to_numpy()
+    print("-----")
+    print(f"Writing {output_path}")
+    results = get_interval(args.interval_type, X, y, args.model_type)
+    result_df = pd.DataFrame(np.vstack(results).T)
+    result_df.columns = ["coverage", "interval_width"]
+    result_df.to_csv(os.path.join(os.getcwd(), output_path), index=False)
+    print(f"{output_path} written")
+    print(f"Coverage: {results[0].mean()}, Width: {results[1].mean()}")
+    print("-----")
