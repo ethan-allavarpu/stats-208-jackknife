@@ -367,6 +367,7 @@ def split_conformal_interval(
         print(f"Trial {trial + 1} of {n_trials}.")
         t1 = time.perf_counter()
         X_train, y_train, X_test, y_test = train_test_split(X, y, n)
+        model = get_model(model_type, X_train)
         test_idx = np.random.choice(
             X_train.shape[0], size=int(X_train.shape[0] / 2), replace=False
         )
