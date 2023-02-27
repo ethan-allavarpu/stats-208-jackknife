@@ -162,7 +162,7 @@ def process_meps_data(in_data: str, out_path: str) -> tuple:
         meps, columns=categorical_features, prefix=categorical_features
     )
     meps_x = meps.drop(columns=utilization_vars).reset_index(drop=True)
-    meps_y = np.log(1 + np.array(meps[quantitative_features]).sum(axis=1))
+    meps_y = np.log(1 + np.array(meps[utilization_vars]).sum(axis=1))
     meps = pd.concat((meps_x, pd.Series(meps_y)), axis=1, ignore_index=True)
     meps.to_csv(out_path, index=False)
     return meps.shape

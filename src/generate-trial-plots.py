@@ -132,7 +132,7 @@ def generate_plots(
 
 
 if __name__ == "__main__":
-    data_sources = ["crime", "blog"]
+    data_sources = ["crime", "blog", "mep"]
     data_coverage = get_data_coverage(
         args.input_dir,
         data_sources=data_sources,
