@@ -13,4 +13,9 @@ python src/replicate-trials.py \
 python src/replicate-trials.py \
         --input_path data/processed/crime.csv \
         --model_type nn \
-        --interval_type jackknife_plus
+        --interval_type cv
+
+python src/replicate-trials.py \
+        --input_path data/processed/crime.csv \
+        --model_type nn \
+        --interval_type conformal
