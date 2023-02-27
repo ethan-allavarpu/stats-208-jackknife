@@ -1,1 +1,6 @@
 .DS_Store
+data/processed/blog-nn-jackknife_plus.csv
+data/processed/blog-nn-jackknife.csv
+data/processed/blog-nn-naive.csv
+
+src/__pycache__
