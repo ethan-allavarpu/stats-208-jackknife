@@ -56,8 +56,13 @@ def get_data_coverage(
         "naive": "naive",
         "jackknife": "jackknife",
         "jackknife_plus": "jackknife+",
+        "jackknife_mm": "jackknife-mm",
+        "cv": "CV+",
+        "conformal": "split",
     }
-    error_lengths = np.empty((len(data_sources), 9, 2, 2))
+    error_lengths = np.empty(
+        (len(data_sources), len(model_dictionary) * len(interval_dictionary), 2, 2)
+    )
     i = 0
     for data_source in data_sources:
         data_df = pd.DataFrame()
@@ -115,7 +120,28 @@ def generate_plots(
     """
     sns.set(rc={"figure.figsize": (10, 3)})
     sns.set_theme(palette="pastel", style="white")
-    err_x = np.array([-0.27, 0, 0.27, 0.74, 1.01, 1.27, 1.74, 2.01, 2.27])
+    err_x = np.array(
+        [
+            -0.27,
+            0.00,
+            0.27,
+            0.74,
+            1.01,
+            1.27,
+            1.74,
+            2.01,
+            2.27,
+            2.74,
+            3.01,
+            3.27,
+            3.74,
+            4.01,
+            4.27,
+            4.74,
+            5.01,
+            5.27,
+        ]
+    )
     for i, data_source in enumerate(data_sources):
         data = data_coverage[data_source]
         _, ax = plt.subplots(1, 2)
@@ -160,7 +186,14 @@ if __name__ == "__main__":
         args.input_dir,
         data_sources=data_sources,
         model_types=["ridge", "rf", "nn"],
-        interval_types=["naive", "jackknife", "jackknife_plus"],
+        interval_types=[
+            "naive",
+            "jackknife",
+            "jackknife_plus",
+            "jackknife_mm",
+            "cv",
+            "conformal",
+        ],
         n_trials=args.n_trials,
     )
     print("Data gathered. Plotting now")
