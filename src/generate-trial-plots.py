@@ -42,6 +42,8 @@ def get_data_coverage(
         "ridge": "Ridge regr.",
         "rf": "Random for.",
         "nn": "Neural net.",
+        "lasso": "LASSO regr.",
+        "boost": "Boosting"
     }
     interval_dictionary = {
         "naive": "naive",
@@ -146,6 +148,25 @@ if __name__ == "__main__":
             "conformal",
         ],
     )
-    print("Data gathered: plotting now.")
+    print("Data gathered for replication of trials: plotting now.")
+    generate_plots(data_sources, args.output_dir, data_coverage, args.n_trials)
+    print(f"Plots saved to {args.output_dir}")
+
+    # Get novel plots
+    data_sources = ["cofi"]
+    data_coverage = get_data_coverage(
+        args.input_dir,
+        data_sources=data_sources,
+        model_types=["lasso", "boost"],
+        interval_types=[
+            "naive",
+            "jackknife",
+            "jackknife_plus",
+            "jackknife_mm",
+            "cv",
+            "conformal",
+        ],
+    )
+    print("Data gathered for novel dataset: plotting now.")
     generate_plots(data_sources, args.output_dir, data_coverage, args.n_trials)
     print(f"Plots saved to {args.output_dir}")

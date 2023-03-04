@@ -14,6 +14,9 @@ argp.add_argument("--blog_data_path", type=str, required=True)
 argp.add_argument("--blog_out_path", type=str, required=True)
 argp.add_argument("--meps_data_path", type=str, required=True)
 argp.add_argument("--meps_out_path", type=str, required=True)
+argp.add_argument("--cofi_bottle_path", type=str, required=True)
+argp.add_argument("--cofi_cast_path", type=str, required=True)
+argp.add_argument("--cofi_out_path", type=str, required=True)
 args = argp.parse_args()
 
 
@@ -84,7 +87,7 @@ def process_blog_data(in_data: str, out_path: str) -> tuple:
 def process_meps_data(in_data: str, out_path: str) -> tuple:
     """
     Process BlogFeedback data and write the processed data to a CSV file.
-    Only change is transforming the response: Y = log(1 + # comments)
+    Only change is transforming the response
 
     Parameters
     ----------
@@ -167,6 +170,36 @@ def process_meps_data(in_data: str, out_path: str) -> tuple:
     meps.to_csv(out_path, index=False)
     return meps.shape
 
+def process_cofi_data(bottle_path: str, cast_path: str, out_path: str) -> tuple:
+    """
+    Process COFI bottle data and write the processed data to a CSV file.
+
+    Parameters
+    ----------
+    bottle_path: str
+        File path for input bottle COFI data
+    cast_path: str
+        File path for input cast COFI data
+    out_path: str
+        File path to which we write the processed CSV file
+
+    Returns
+    -------
+    Tuple with the dimensions of the processed dataset
+    """
+    bottle = pd.read_csv(bottle_path, encoding="latin-1")
+    bottle_cols = ["Depthm", "T_degC", "O2ml_L", "STheta", "O2Sat",
+                   "Oxy_µmol/Kg", "ChlorA", "Phaeop", "PO4uM","SiO3uM",
+                   "NO2uM", "NO3uM", "NH3uM", "DarkAs", "MeanAs", "R_DYNHT",
+                   "R_Nuts", "Salnty"]
+    bottle = bottle[bottle_cols + ["Cst_Cnt"]].dropna().reset_index(drop=True)
+    cast = pd.read_csv(cast_path, encoding="latin-1")
+    cast_cols = ["Distance", "Lat_Dec", "Lon_Dec", "Bottom_D", "Wind_Spd"]
+    cast = cast[cast_cols + ["Cst_Cnt"]].dropna().reset_index(drop=True)
+    cofi = pd.merge(bottle, cast, how="inner", on="Cst_Cnt").drop(columns="Cst_Cnt")
+    cofi.to_csv(out_path, index=False)
+    return cofi.shape
+
 
 if __name__ == "__main__":
     crime_dim = process_crime_data(
@@ -180,5 +213,11 @@ if __name__ == "__main__":
     print(f"Data has {blog_dim[0]} observations, {blog_dim[1] - 1} features")
 
     meps_dim = process_meps_data(args.meps_data_path, args.meps_out_path)
-    print(f"Blog CSV file written to {args.meps_out_path}.")
+    print(f"MEPS CSV file written to {args.meps_out_path}.")
     print(f"Data has {meps_dim[0]} observations, {meps_dim[1] - 1} features")
+
+    cofi_dim = process_cofi_data(
+        args.cofi_bottle_path, args.cofi_cast_path, args.cofi_out_path
+    )
+    print(f"COFI CSV file written to {args.cofi_out_path}.")
+    print(f"Data has {cofi_dim[0]} observations, {cofi_dim[1] - 1} features")

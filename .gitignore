@@ -1,2 +1,4 @@
-.DS_Store
+*.DS_Store
+*.pdf
+data/raw/CalCOFI_Database_194903-202001_csv_22Sep2021
 data/raw/h192.ssp
