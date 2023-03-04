@@ -170,6 +170,7 @@ def process_meps_data(in_data: str, out_path: str) -> tuple:
     meps.to_csv(out_path, index=False)
     return meps.shape
 
+
 def process_cofi_data(bottle_path: str, cast_path: str, out_path: str) -> tuple:
     """
     Process COFI bottle data and write the processed data to a CSV file.
@@ -188,15 +189,33 @@ def process_cofi_data(bottle_path: str, cast_path: str, out_path: str) -> tuple:
     Tuple with the dimensions of the processed dataset
     """
     bottle = pd.read_csv(bottle_path, encoding="latin-1")
-    bottle_cols = ["Depthm", "T_degC", "O2ml_L", "STheta", "O2Sat",
-                   "Oxy_µmol/Kg", "ChlorA", "Phaeop", "PO4uM","SiO3uM",
-                   "NO2uM", "NO3uM", "NH3uM", "DarkAs", "MeanAs", "R_DYNHT",
-                   "R_Nuts", "Salnty"]
+    bottle_cols = [
+        "Depthm",
+        "T_degC",
+        "O2ml_L",
+        "STheta",
+        "O2Sat",
+        "Oxy_µmol/Kg",
+        "ChlorA",
+        "Phaeop",
+        "PO4uM",
+        "SiO3uM",
+        "NO2uM",
+        "NO3uM",
+        "NH3uM",
+        "DarkAs",
+        "MeanAs",
+        "R_DYNHT",
+        "R_Nuts",
+        "Salnty",
+    ]
     bottle = bottle[bottle_cols + ["Cst_Cnt"]].dropna().reset_index(drop=True)
     cast = pd.read_csv(cast_path, encoding="latin-1")
-    cast_cols = ["Distance", "Lat_Dec", "Lon_Dec", "Bottom_D", "Wind_Spd"]
+    cast_cols = ["Distance", "Bottom_D", "Wind_Spd"]
     cast = cast[cast_cols + ["Cst_Cnt"]].dropna().reset_index(drop=True)
-    cofi = pd.merge(bottle, cast, how="inner", on="Cst_Cnt").drop(columns="Cst_Cnt")
+    cofi = pd.merge(bottle, cast, how="inner", on="Cst_Cnt").drop(columns="Cst_Cnt")[
+        cast_cols + bottle_cols
+    ]
     cofi.to_csv(out_path, index=False)
     return cofi.shape
 

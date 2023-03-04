@@ -43,7 +43,7 @@ def get_data_coverage(
         "rf": "Random for.",
         "nn": "Neural net.",
         "lasso": "LASSO regr.",
-        "boost": "Boosting"
+        "boost": "Boosting",
     }
     interval_dictionary = {
         "naive": "naive",

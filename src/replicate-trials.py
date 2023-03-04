@@ -109,7 +109,9 @@ def get_model(model_type: str, X_train: np.array):
     elif model_type == "boost":
         model = GradientBoostingRegressor(random_state=208)
     else:
-        raise ValueError("Invalid model type. Please select one of: ridge, rf, nn, lasso, boost")
+        raise ValueError(
+            "Invalid model type. Please select one of: ridge, rf, nn, lasso, boost"
+        )
     return model
 
 
@@ -384,7 +386,7 @@ def split_conformal_interval(
         X_test_loo = X_train[loo_masks == False]
         y_test_loo = y_train[loo_masks == False]
         if model_type in ["ridge", "lasso"]:
-                model = get_model(model_type, X_train_loo)
+            model = get_model(model_type, X_train_loo)
         model.fit(X_train_loo, y_train_loo)
         R_conformal = np.abs(y_test_loo - model.predict(X_test_loo))
         fitted_vals = model.predict(X_test)
