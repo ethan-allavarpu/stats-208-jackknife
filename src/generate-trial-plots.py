@@ -117,6 +117,7 @@ def generate_plots(
                 ax=ax[j],
             )
             plt.ylim(0, max(1, data[plotted_val].max()))
+            ax[j].set_xlabel(None)
             plt.ylabel(plotted_val.replace("_", " ").title())
             ax[j].legend([], [], frameon=False)
             # Only add coverage rate for coverage plot
