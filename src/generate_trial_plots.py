@@ -9,6 +9,7 @@ argp = argparse.ArgumentParser()
 argp.add_argument("--input_dir", type=str, required=True)
 argp.add_argument("--output_dir", type=str, required=True)
 argp.add_argument("--n_trials", type=int, required=True)
+argp.add_argument("--interval_width", type=float, required=False)
 args = argp.parse_args()
 
 
@@ -39,6 +40,7 @@ def get_data_coverage(
     data_coverage = dict()
     # Convert shorthand abbreviations to nicer names for plotting
     model_dictionary = {
+        "linear": "Linear reg.",
         "ridge": "Ridge regr.",
         "rf": "Random for.",
         "nn": "Neural net.",

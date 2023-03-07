@@ -10,4 +10,5 @@ python src/generate_trial_plots.py \
 python src/plot-simulation.py \
     --input_dir data/simulated/ \
     --output_dir visuals/ \
-    --n_trials 20
+    --n_trials 20 \
+    --interval_width 22.56

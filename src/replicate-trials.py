@@ -5,8 +5,7 @@ from scipy.linalg.interpolative import estimate_spectral_norm
 from scipy.sparse.linalg import LinearOperator
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import Lasso
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from sklearn.neural_network import MLPRegressor
 import os
 import time
@@ -108,6 +107,8 @@ def get_model(model_type: str, X_train: np.array):
         model = Lasso(alpha=(2 * get_lambda(X_train)), random_state=208)
     elif model_type == "boost":
         model = GradientBoostingRegressor(random_state=208)
+    elif model_type == "linear":
+        model = LinearRegression()
     else:
         raise ValueError(
             "Invalid model type. Please select one of: ridge, rf, nn, lasso, boost"

@@ -17,6 +17,7 @@ if __name__ == "__main__":
     noise = np.random.normal(loc=10, size=args.N) * np.random.choice(
         [-1, 1], size=args.N
     )
+    print(f"Beta: {beta}")
     Y = X @ beta + noise
 
     pd.concat([pd.DataFrame(X), pd.Series(Y)], axis=1).to_csv(
@@ -24,7 +25,7 @@ if __name__ == "__main__":
     )
 
     Y_hat = X @ beta
-    margin = 10 + scipy.stats.norm.ppf(1 - 0.05)
+    margin = 10 + scipy.stats.norm.ppf(1 - 0.10)
     covered = (Y_hat - margin <= Y) & (Y <= Y_hat + margin)
     print(f"Coverage Rate: {covered.mean()}")
     print(f"Coverage Width: {np.round(2 * margin, 2)}")
