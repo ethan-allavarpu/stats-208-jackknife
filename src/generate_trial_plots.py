@@ -76,6 +76,7 @@ def generate_plots(
     output_directory: str,
     data_coverage: dict,
     n_trials: int = 20,
+    theoretical_width: int = -1
 ) -> None:
     """
     Create and save plots that match those on the paper for each data source
@@ -123,6 +124,9 @@ def generate_plots(
             # Only add coverage rate for coverage plot
             if plotted_val == "Coverage":
                 ax[j].axhline(y=0.9, color="black", linestyle="--", linewidth=1)
+            if plotted_val == "interval_width" and theoretical_width > 0:
+                ax[j].axhline(y=theoretical_width, color="black", linestyle="--", linewidth=1)
+                ax[j].annotate(theoretical_width, (-0.5, theoretical_width))
         plt.legend(loc=(1.05, 0.25))
         plt.savefig(
             os.path.join(output_directory, data_source + ".png"),
