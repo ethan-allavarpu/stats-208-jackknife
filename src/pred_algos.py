@@ -24,9 +24,7 @@ class RidgeRegression(Model):
         self.kwargs = kwargs
 
         alpha = 2 * get_lambda(X_train)
-        self.model = Ridge(
-            alpha=alpha, **kwargs
-        )
+        self.model = Ridge( alpha=alpha, **kwargs)
 
     def fit(self, X_train, y_train):
         if self.data != X_train:
@@ -39,10 +37,8 @@ class RidgeRegression(Model):
     
 class RandomForest(Model):
 
-    def __init__(self, n_estimators, criterion, **kwargs):
-        self.model = RandomForestRegressor(
-            n_estimators=n_estimators, criterion=criterion, **kwargs
-        )
+    def __init__(self, **kwargs):
+        self.model = RandomForestRegressor(**kwargs)
 
     def fit(self, X_train, y_train):
         self.model.fit(X_train, y_train)
@@ -52,10 +48,8 @@ class RandomForest(Model):
     
 class MLP(Model):
 
-    def __init__(self, activation, solver, **kwargs):
-        self.model = MLPRegressor(
-            activation=activation, solver=solver, **kwargs
-        )
+    def __init__(self, **kwargs):
+        self.model = MLPRegressor(**kwargs)
 
     def fit(self, X_train, y_train):
         self.model.fit(X_train, y_train)
