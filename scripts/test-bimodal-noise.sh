@@ -8,4 +8,8 @@ python src/generate-bimodal-data.py \
 python src/replicate-trials.py \
         --input_path data/simulated/bimodal-data.csv \
         --model_type linear \
+        --interval_type naive
+python src/replicate-trials.py \
+        --input_path data/simulated/bimodal-data.csv \
+        --model_type linear \
         --interval_type jackknife
