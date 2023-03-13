@@ -3,8 +3,9 @@ import numpy as np
 import pandas as pd
 from scipy.linalg.interpolative import estimate_spectral_norm
 from scipy.sparse.linalg import LinearOperator
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from sklearn.neural_network import MLPRegressor
 import os
 import time
@@ -82,7 +83,7 @@ def get_model(model_type: str, X_train: np.array):
     ----------
     model_type: str
         Type of model to create. One of "ridge" (ridge regression),
-        "rf" (random forest), or "nn" (neural network)
+        "rf" (random forest), "nn" (neural network), "lasso" (LASSO), "boost" (boosting)
     X_train: np.array
         Training data covariates
 
@@ -102,8 +103,16 @@ def get_model(model_type: str, X_train: np.array):
         )
     elif model_type == "nn":
         model = MLPRegressor(activation="logistic", solver="lbfgs", random_state=208)
+    elif model_type == "lasso":
+        model = Lasso(alpha=(2 * get_lambda(X_train)), random_state=208)
+    elif model_type == "boost":
+        model = GradientBoostingRegressor(random_state=208)
+    elif model_type == "linear":
+        model = LinearRegression()
     else:
-        raise ValueError("Invalid model type. Please select one of: ridge, rf, nn")
+        raise ValueError(
+            "Invalid model type. Please select one of: ridge, rf, nn, lasso, boost"
+        )
     return model
 
 
@@ -127,7 +136,7 @@ def naive_interval(
         Array of response values
     model_type: str
         Type of model to create. One of "ridge" (ridge regression),
-        "rf" (random forest), or "nn" (neural network)
+        "rf" (random forest), "nn" (neural network), "lasso" (LASSO), "boost" (boosting)
     alpha: float, default = 0.10
         Significance level (1 - alpha is the coverage rate)
     n: int, default = 20
@@ -152,7 +161,7 @@ def naive_interval(
         model.fit(X_train, y_train)
         abs_residuals = np.abs(y_train - model.predict(X_train))
         # Cutoff as determined by the paper
-        q_hat = np.sort(abs_residuals)[int(np.ceil((1 - alpha) * (n - 1)))]
+        q_hat = np.sort(abs_residuals)[int(np.ceil((1 - alpha) * (n + 1)) - 1)]
         fitted_vals = model.predict(X_test)
         lb = fitted_vals - q_hat
         ub = fitted_vals + q_hat
@@ -183,7 +192,7 @@ def jackknife_interval(
         Array of response values
     model_type: str
         Type of model to create. One of "ridge" (ridge regression),
-        "rf" (random forest), or "nn" (neural network)
+        "rf" (random forest), "nn" (neural network), "lasso" (LASSO), "boost" (boosting)
     alpha: float, default = 0.10
         Significance level (1 - alpha is the coverage rate)
     n: int, default = 20
@@ -217,8 +226,8 @@ def jackknife_interval(
             y_train_loo = y_train[loo_masks]
             X_test_loo = X_train[i].reshape(1, -1)
             y_test_loo = y_train[i]
-            if model_type == "ridge":
-                model = Ridge(alpha=(2 * get_lambda(X_train_loo)), random_state=208)
+            if model_type in ["ridge", "lasso"]:
+                model = get_model(model_type, X_train_loo)
             model.fit(X_train_loo, y_train_loo)
             R_loo[i] = np.abs(y_test_loo - model.predict(X_test_loo))
             fitted_vals_loo[:, i] = model.predict(X_test)
@@ -227,7 +236,8 @@ def jackknife_interval(
 
         # Jackknife
         model.fit(X_train, y_train)
-        q_hat = np.sort(R_loo)[int(np.ceil((1 - alpha) * (n - 1)))]
+        # Zero-indexed
+        q_hat = np.sort(R_loo)[int(np.ceil((1 - alpha) * (n + 1)) - 1)]
         fitted_vals = model.predict(X_test)
         lb = fitted_vals - q_hat
         ub = fitted_vals + q_hat
@@ -235,8 +245,8 @@ def jackknife_interval(
         interval_widths[trial, 0] = np.mean(ub - lb)
 
         # Jackknife+
-        lb = np.sort(lb_stat, axis=1)[:, int(np.floor(alpha * (n - 1)))]
-        ub = np.sort(ub_stat, axis=1)[:, int(np.ceil((1 - alpha) * (n - 1)))]
+        lb = np.sort(lb_stat, axis=1)[:, int(np.floor(alpha * (n + 1)) - 1)]
+        ub = np.sort(ub_stat, axis=1)[:, int(np.ceil((1 - alpha) * (n + 1)) - 1)]
         coverage_rates[trial, 1] = np.mean((lb <= y_test) & (ub >= y_test))
         interval_widths[trial, 1] = np.mean(ub - lb)
 
@@ -271,7 +281,7 @@ def cv_plus_interval(
         Array of response values
     model_type: str
         Type of model to create. One of "ridge" (ridge regression),
-        "rf" (random forest), or "nn" (neural network)
+        "rf" (random forest), "nn" (neural network), "lasso" (LASSO), "boost" (boosting)
     alpha: float, default = 0.10
         Significance level (1 - alpha is the coverage rate)
     n: int, default = 20
@@ -308,8 +318,8 @@ def cv_plus_interval(
             y_train_loo = y_train[loo_masks]
             X_test_loo = X_train[loo_masks == False]
             y_test_loo = y_train[loo_masks == False]
-            if model_type == "ridge":
-                model = Ridge(alpha=(2 * get_lambda(X_train_loo)), random_state=208)
+            if model_type in ["ridge", "lasso"]:
+                model = get_model(model_type, X_train_loo)
             model.fit(X_train_loo, y_train_loo)
             R_cv = np.abs(y_test_loo - model.predict(X_test_loo))
             fitted_vals_cv = model.predict(X_test)
@@ -317,8 +327,8 @@ def cv_plus_interval(
                 lb_stat[:, test_idx[i]] = fitted_vals_cv - R_i_cv
                 ub_stat[:, test_idx[i]] = fitted_vals_cv + R_i_cv
 
-        lb = np.sort(lb_stat, axis=1)[:, int(np.floor(alpha * (n - 1)))]
-        ub = np.sort(ub_stat, axis=1)[:, int(np.ceil((1 - alpha) * (n - 1)))]
+        lb = np.sort(lb_stat, axis=1)[:, int(np.floor(alpha * (n + 1)) - 1)]
+        ub = np.sort(ub_stat, axis=1)[:, int(np.ceil((1 - alpha) * (n + 1)) - 1)]
         coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
         interval_widths[trial] = np.mean(ub - lb)
         print(f"Trial took {round(time.perf_counter() - t1, 2)} seconds.")
@@ -346,7 +356,7 @@ def split_conformal_interval(
         Array of response values
     model_type: str
         Type of model to create. One of "ridge" (ridge regression),
-        "rf" (random forest), or "nn" (neural network)
+        "rf" (random forest), "nn" (neural network), "lasso" (LASSO), "boost" (boosting)
     alpha: float, default = 0.10
         Significance level (1 - alpha is the coverage rate)
     n: int, default = 20
@@ -377,13 +387,13 @@ def split_conformal_interval(
         y_train_loo = y_train[loo_masks]
         X_test_loo = X_train[loo_masks == False]
         y_test_loo = y_train[loo_masks == False]
-        if model_type == "ridge":
-            model = Ridge(alpha=(2 * get_lambda(X_train_loo)), random_state=208)
+        if model_type in ["ridge", "lasso"]:
+            model = get_model(model_type, X_train_loo)
         model.fit(X_train_loo, y_train_loo)
         R_conformal = np.abs(y_test_loo - model.predict(X_test_loo))
         fitted_vals = model.predict(X_test)
 
-        margin = np.sort(R_conformal)[int(np.ceil((1 - alpha) * (len(test_idx) - 1)))]
+        margin = np.sort(R_conformal)[int(np.ceil((1 - alpha) * (len(test_idx) + 1)) - 1)]
         lb = fitted_vals - margin
         ub = fitted_vals + margin
         coverage_rates[trial] = np.mean((lb <= y_test) & (ub >= y_test))
@@ -415,7 +425,7 @@ def get_interval(
         Array of response values
     model_type: str
         Type of model to create. One of "ridge" (ridge regression),
-        "rf" (random forest), or "nn" (neural network)
+        "rf" (random forest), "nn" (neural network), "lasso" (LASSO), "boost" (boosting)
     alpha: float, default = 0.10
         Significance level (1 - alpha is the coverage rate)
     n: int, default = 20

@@ -1,6 +1,5 @@
-.DS_Store
-data/processed/blog-nn-jackknife_plus.csv
-data/processed/blog-nn-jackknife.csv
-data/processed/blog-nn-naive.csv
-
-src/__pycache__
+*.DS_Store
+*.pdf
+data/raw/CalCOFI_Database_194903-202001_csv_22Sep2021
+data/raw/h192.ssp
+*__pycache__*
